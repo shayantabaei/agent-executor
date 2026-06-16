@@ -4,8 +4,19 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+
+	"github.com/shayantabaei/agent-executor/internal/execution"
 )
 
+type Handler struct {
+	executor execution.Executor
+}
+
+func NewHandler(executor execution.Executor) *Handler {
+	return &Handler{executor: executor}
+}
+
+// HealthHandler reports whether the HTTP server is running.
 func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -17,14 +28,18 @@ func HealthHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func ExecutionHandler(w http.ResponseWriter, r *http.Request) {
+// ExecutionHandler validates and executes a submitted code request.
+func (h *Handler) ExecutionHandler(
+	w http.ResponseWriter,
+	r *http.Request,
+) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var request ExecutionRequest
-
+	// Decode JSON body into ExecutionRequest struct
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 		return
@@ -40,13 +55,28 @@ func ExecutionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response := ExecutionResponse{
-		Language: request.Language,
-		Code:     request.Code,
-		Status:   "accepted",
+	// Call the executor to run the code and capture the result
+	// Pass the request context so execution can respond to cancellation and timeouts.
+	result, err := h.executor.Run(
+		r.Context(),
+		execution.Request{
+			Language: request.Language,
+			Code:     request.Code,
+		},
+	)
+
+	if err != nil {
+		log.Printf("Error executing code: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
 	}
 
-	writeJSON(w, http.StatusAccepted, response)
+	// Write the execution result back as JSON
+	writeJSON(w, http.StatusOK, ExecutionResponse{
+		Stdout:   result.Stdout,
+		Stderr:   result.Stderr,
+		ExitCode: result.ExitCode,
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

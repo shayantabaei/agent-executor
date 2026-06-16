@@ -6,7 +6,7 @@ type ExecutionRequest struct {
 }
 
 type ExecutionResponse struct {
-	Language string `json:"language"`
-	Code     string `json:"code"`
-	Status   string `json:"status"`
+	Stdout   string `json:"stdout"`
+	Stderr   string `json:"stderr"`
+	ExitCode int    `json:"exitCode"`
 }
