@@ -11,7 +11,7 @@ import (
 
 func main() {
 	// Use a fake executor until Docker execution is implemented
-	executor := execution.FakeExecutor{}
+	executor := execution.NewDockerExecutor()
 	// Inject the executor into the HTTP handler
 	handler := api.NewHandler(executor)
 
