@@ -38,10 +38,12 @@ func (e *DockerExecutor) Run(
 	// Provide the code to the container via stdin.
 	cmd.Stdin = bytes.NewBufferString(req.Code)
 
-	// Capture stdout and stderr in buffers so we can return them in the Result struct.
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	// Set a limit of 64KB
+	stdout := NewLimitedWriter(64 * 1024)
+	stderr := NewLimitedWriter(64 * 1024)
+
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	// Run the docker command
 	err := cmd.Run()
