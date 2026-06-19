@@ -51,6 +51,10 @@ func (e *DockerExecutor) Run(
 		Stderr: stderr.String(),
 	}
 
+	if ctx.Err() != nil {
+		return Result{}, ctx.Err()
+	}
+
 	if err == nil {
 		return result, nil
 	}
