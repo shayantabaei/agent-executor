@@ -1,9 +1,12 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/shayantabaei/agent-executor/internal/execution"
 )
@@ -55,10 +58,14 @@ func (h *Handler) ExecutionHandler(
 		return
 	}
 
+	// Create a 5 second timeout context for the execution request to prevent long-running code.
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
 	// Call the executor to run the code and capture the result
 	// Pass the request context so execution can respond to cancellation and timeouts.
 	result, err := h.executor.Run(
-		r.Context(),
+		ctx,
 		execution.Request{
 			Language: request.Language,
 			Code:     request.Code,
@@ -66,6 +73,10 @@ func (h *Handler) ExecutionHandler(
 	)
 
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			http.Error(w, "Execution timed out", http.StatusRequestTimeout)
+		}
+
 		log.Printf("Error executing code: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
