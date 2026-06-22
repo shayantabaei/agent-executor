@@ -10,3 +10,7 @@ type ExecutionResponse struct {
 	Stderr   string `json:"stderr"`
 	ExitCode int    `json:"exitCode"`
 }
+
+type RuntimesResponse struct {
+	Runtimes []string `json:"runtimes"`
+}

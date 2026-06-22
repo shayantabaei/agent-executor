@@ -18,6 +18,10 @@ type Runtime interface {
 	Command() []string
 }
 
+func SupportedLanguages() []string {
+	return []string{"python", "javascript"}
+}
+
 func runtimeForLanguage(language string) (Runtime, error) {
 	language = strings.ToLower(strings.TrimSpace(language))
 
