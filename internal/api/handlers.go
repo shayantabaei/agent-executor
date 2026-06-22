@@ -25,7 +25,7 @@ func NewHandlerWithConfig(executor execution.Executor, config Config) *Handler {
 }
 
 // HealthHandler reports whether the HTTP server is running.
-func HealthHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -108,7 +108,7 @@ func (h *Handler) ExecutionHandler(
 	})
 }
 
-func RuntimesHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) RuntimesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
