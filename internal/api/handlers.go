@@ -72,9 +72,14 @@ func (h *Handler) ExecutionHandler(
 		},
 	)
 
+	var unsupportedLanguageError execution.UnsupportedLanguageError
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "Execution timed out", http.StatusRequestTimeout)
+		}
+
+		if errors.As(err, &unsupportedLanguageError) {
+			http.Error(w, unsupportedLanguageError.Error(), http.StatusBadRequest)
 		}
 
 		log.Printf("Error executing code: %v", err)
