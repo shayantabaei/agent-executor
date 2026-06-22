@@ -87,3 +87,30 @@ func TestDockerExecutorReturnsTimeoutError(t *testing.T) {
 		t.Fatalf("expected context deadline exceeded, got %v", err)
 	}
 }
+
+func TestDockerExecutorAppliesOutputLimitFromConfig(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Docker integration test in short mode")
+	}
+
+	executor := NewDockerExecutorWithConfig(DockerConfig{
+		Memory:     "128m",
+		CPUs:       "0.5",
+		OutputSize: 10,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	result, err := executor.Run(ctx, Request{
+		Language: "python",
+		Code:     `print("x" * 100)`,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Stdout) != 10 {
+		t.Fatalf("expected stdout length 10, got %d", len(result.Stdout))
+	}
+}
