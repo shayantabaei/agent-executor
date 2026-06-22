@@ -16,9 +16,9 @@ func main() {
 	handler := api.NewHandler(executor)
 
 	// Wire up the HTTP server
-	http.HandleFunc("/health", api.HealthHandler)
+	http.HandleFunc("/health", handler.HealthHandler)
 	http.HandleFunc("/executions", handler.ExecutionHandler)
-	http.HandleFunc("/runtimes", api.RuntimesHandler)
+	http.HandleFunc("/runtimes", handler.RuntimesHandler)
 
 	fmt.Println("Agent Executor listening on http://localhost:8080")
 
