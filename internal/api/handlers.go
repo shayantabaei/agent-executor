@@ -13,10 +13,15 @@ import (
 
 type Handler struct {
 	executor execution.Executor
+	config   Config
 }
 
 func NewHandler(executor execution.Executor) *Handler {
-	return &Handler{executor: executor}
+	return NewHandlerWithConfig(executor, DefaultConfig())
+}
+
+func NewHandlerWithConfig(executor execution.Executor, config Config) *Handler {
+	return &Handler{executor: executor, config: config}
 }
 
 // HealthHandler reports whether the HTTP server is running.
@@ -41,6 +46,10 @@ func (h *Handler) ExecutionHandler(
 		return
 	}
 
+	// Limit the request body before decoding JSON to avoid reading
+	// oversized payloads into memory.
+	r.Body = http.MaxBytesReader(w, r.Body, h.config.MaxBodySize)
+
 	var request ExecutionRequest
 	// Decode JSON body into ExecutionRequest struct
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
@@ -56,6 +65,10 @@ func (h *Handler) ExecutionHandler(
 	if request.Code == "" {
 		http.Error(w, "Code is required", http.StatusBadRequest)
 		return
+	}
+
+	if len(request.Code) > h.config.MaxCodeSize {
+		http.Error(w, "Code exceeds maximum size", http.StatusBadRequest)
 	}
 
 	// Create a 5 second timeout context for the execution request to prevent long-running code.

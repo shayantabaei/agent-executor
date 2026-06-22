@@ -114,3 +114,51 @@ func TestExecutionHandlerReturnsInternalServerError(t *testing.T) {
 		)
 	}
 }
+
+func TestExecutionHandlerRejectsCodeOverLimit(t *testing.T) {
+	handler := NewHandlerWithConfig(stubExecutor{}, Config{
+		MaxBodySize: 1024,
+		MaxCodeSize: 10,
+	})
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/executions",
+		strings.NewReader(`{
+			"language": "python",
+			"code": "this code is definitely too long"
+		}`),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	handler.ExecutionHandler(recorder, req)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, recorder.Code)
+	}
+}
+
+func TestExecutionHandlerRejectsBodyOverLimit(t *testing.T) {
+	handler := NewHandlerWithConfig(stubExecutor{}, Config{
+		MaxBodySize: 10,
+		MaxCodeSize: 64 * 1024,
+	})
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/executions",
+		strings.NewReader(`{
+			"language": "python",
+			"code": "print(2 + 2)"
+		}`),
+	)
+
+	recorder := httptest.NewRecorder()
+
+	handler.ExecutionHandler(recorder, req)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status %d, got %d", http.StatusBadRequest, recorder.Code)
+	}
+}
