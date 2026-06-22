@@ -18,8 +18,11 @@ func (e *DockerExecutor) Run(
 	ctx context.Context,
 	req Request,
 ) (Result, error) {
-	if req.Language != "python" {
-		return Result{}, fmt.Errorf("unsupported language: %s", req.Language)
+
+	runtime, err := runtimeForLanguage(req.Language)
+
+	if err != nil {
+		return Result{}, err
 	}
 
 	args := []string{
@@ -29,9 +32,10 @@ func (e *DockerExecutor) Run(
 		"--network", "none",
 		"--memory", "128m",
 		"--cpus", "0.5",
-		"python:3.12-alpine",
-		"python", "-",
+		runtime.Image(),
 	}
+
+	args = append(args, runtime.Command()...)
 
 	// Create the command to run the Docker container with the specified arguments.
 	cmd := exec.CommandContext(ctx, "docker", args...)
@@ -46,7 +50,7 @@ func (e *DockerExecutor) Run(
 	cmd.Stderr = stderr
 
 	// Run the docker command
-	err := cmd.Run()
+	err = cmd.Run()
 
 	result := Result{
 		Stdout: stdout.String(),
