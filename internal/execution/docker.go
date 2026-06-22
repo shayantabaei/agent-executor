@@ -8,10 +8,16 @@ import (
 	"os/exec"
 )
 
-type DockerExecutor struct{}
+type DockerExecutor struct {
+	config DockerConfig
+}
 
 func NewDockerExecutor() *DockerExecutor {
-	return &DockerExecutor{}
+	return NewDockerExecutorWithConfig(DefaultDockerConfig())
+}
+
+func NewDockerExecutorWithConfig(config DockerConfig) *DockerExecutor {
+	return &DockerExecutor{config: config}
 }
 
 func (e *DockerExecutor) Run(
