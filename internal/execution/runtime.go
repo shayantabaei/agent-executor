@@ -2,6 +2,7 @@ package execution
 
 import (
 	"fmt"
+	"strings"
 )
 
 type UnsupportedLanguageError struct {
@@ -18,6 +19,8 @@ type Runtime interface {
 }
 
 func runtimeForLanguage(language string) (Runtime, error) {
+	language = strings.ToLower(strings.TrimSpace(language))
+
 	switch language {
 	case "python":
 		return PythonRuntime{}, nil

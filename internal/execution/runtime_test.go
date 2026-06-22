@@ -23,3 +23,14 @@ func TestRuntimeForLanguageReturnsUnsupportedLanguageError(t *testing.T) {
 		t.Fatalf("expected UnsupportedLanguageError, got %T", err)
 	}
 }
+
+func TestRuntimeForLanguageNormalizesLanguage(t *testing.T) {
+	runtime, err := runtimeForLanguage(" PYTHON ")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if runtime.Image() != "python:3.12-alpine" {
+		t.Fatalf("expected python image, got %q", runtime.Image())
+	}
+}
