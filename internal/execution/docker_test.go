@@ -93,11 +93,10 @@ func TestDockerExecutorAppliesOutputLimitFromConfig(t *testing.T) {
 		t.Skip("skipping Docker integration test in short mode")
 	}
 
-	executor := NewDockerExecutorWithConfig(DockerConfig{
-		Memory:     "128m",
-		CPUs:       "0.5",
-		OutputSize: 10,
-	})
+	cfg := DefaultDockerConfig()
+	cfg.OutputSize = 10
+
+	executor := NewDockerExecutorWithConfig(cfg)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
