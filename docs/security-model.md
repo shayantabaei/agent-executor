@@ -116,6 +116,19 @@ Mitigation:
 - Keep workspace scope narrow
 - Clean up workspace after execution
 
+## Docker execution hardening
+
+The Docker execution command applies a small set of practical hardening controls by default:
+
+- Network access is disabled with `--network none`
+- Memory usage is limited with `--memory`
+- CPU usage is limited with `--cpus`
+- Process creation is limited with `--pids-limit`
+- Privilege escalation is restricted with `--security-opt no-new-privileges:true`
+- Runtime images are not pulled implicitly when pull policy is set to `never`
+
+These controls reduce common local execution risks, but they do not make arbitrary code execution safe.
+
 ## Risks that remain
 
 Executing arbitrary code remains inherently risky.
@@ -130,6 +143,20 @@ Remaining risks include:
 - Disk usage abuse if workspace limits are incomplete
 - Malicious code targeting the Docker daemon or host environment
 - Resource exhaustion outside configured limits
+
+### Read-only filesystem mode
+
+Read-only container filesystems are not enabled yet.
+
+A read-only filesystem is a useful hardening control, but it requires a clear writable workspace model. Many runtimes expect writable temporary directories, caches, or working directories. Enabling `--read-only` before defining those writable locations could break normal Python or JavaScript execution.
+
+This will be revisited with temporary workspace support, where the project can define:
+
+- where input files are written
+- where code is executed
+- which temporary directories are writable
+- where generated artifacts are collected
+- how workspaces are cleaned up
 
 ## Intended usage
 
