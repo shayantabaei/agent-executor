@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"strconv"
 )
 
 type DockerExecutor struct {
@@ -31,26 +32,16 @@ func (e *DockerExecutor) Run(
 		return Result{}, err
 	}
 
-	args := []string{
-		"run",
-		"--rm",
-		"-i",
-		"--network", "none",
-		"--memory", "128m",
-		"--cpus", "0.5",
-		runtime.Image(),
-	}
-
-	args = append(args, runtime.Command()...)
+	args := e.buildRunArgs(runtime)
 
 	// Create the command to run the Docker container with the specified arguments.
 	cmd := exec.CommandContext(ctx, "docker", args...)
 	// Provide the code to the container via stdin.
 	cmd.Stdin = bytes.NewBufferString(req.Code)
 
-	// Set a limit of 64KB
-	stdout := NewLimitedWriter(64 * 1024)
-	stderr := NewLimitedWriter(64 * 1024)
+	// Use config limit
+	stdout := NewLimitedWriter(e.config.OutputSize)
+	stderr := NewLimitedWriter(e.config.OutputSize)
 
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -79,4 +70,43 @@ func (e *DockerExecutor) Run(
 
 	return Result{}, fmt.Errorf("failed to execute code: %w", err)
 
+}
+
+func (e *DockerExecutor) buildRunArgs(runtime Runtime) []string {
+	cfg := e.config
+
+	args := []string{
+		"run",
+		"--rm",
+		"-i",
+	}
+
+	if cfg.NetworkDisabled {
+		args = append(args, "--network", "none")
+	}
+
+	if cfg.Memory != "" {
+		args = append(args, "--memory", cfg.Memory)
+	}
+
+	if cfg.CPUs != "" {
+		args = append(args, "--cpus", cfg.CPUs)
+	}
+
+	if cfg.NoNewPrivileges {
+		args = append(args, "--security-opt", "no-new-privileges:true")
+	}
+
+	if cfg.PidsLimit > 0 {
+		args = append(args, "--pids-limit", strconv.Itoa(cfg.PidsLimit))
+	}
+
+	if cfg.PullPolicy != "" {
+		args = append(args, "--pull", cfg.PullPolicy)
+	}
+
+	args = append(args, runtime.Image())
+	args = append(args, runtime.Command()...)
+
+	return args
 }

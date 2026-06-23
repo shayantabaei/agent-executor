@@ -1,9 +1,13 @@
 package execution
 
 type DockerConfig struct {
-	Memory     string
-	CPUs       string
-	OutputSize int
+	Memory          string
+	CPUs            string
+	OutputSize      int
+	NetworkDisabled bool
+	NoNewPrivileges bool
+	PidsLimit       int
+	PullPolicy      string
 }
 
 func DefaultDockerConfig() DockerConfig {
@@ -17,5 +21,17 @@ func DefaultDockerConfig() DockerConfig {
 		// Capture at most 64 KiB each for stdout and stderr.
 		// This prevents unbounded output from growing memory usage.
 		OutputSize: 64 * 1024,
+
+		// Disable network access by default for local code execution.
+		NetworkDisabled: true,
+
+		// Prevent processes from gaining additional privileges inside the container.
+		NoNewPrivileges: true,
+
+		// Limit # of processors container can create (guard against fork bombs)
+		PidsLimit: 128,
+
+		// Prevent docker run from pulling images from a registry
+		PullPolicy: "never",
 	}
 }
