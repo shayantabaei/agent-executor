@@ -57,18 +57,9 @@ func (h *Handler) ExecutionHandler(
 		return
 	}
 
-	if request.Language == "" {
-		http.Error(w, "Language is required", http.StatusBadRequest)
+	if err := validateExecutionRequest(request, h.config); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-
-	if request.Code == "" {
-		http.Error(w, "Code is required", http.StatusBadRequest)
-		return
-	}
-
-	if len(request.Code) > h.config.MaxCodeSize {
-		http.Error(w, "Code exceeds maximum size", http.StatusBadRequest)
 	}
 
 	// Create a 5 second timeout context for the execution request to prevent long-running code.
@@ -77,13 +68,8 @@ func (h *Handler) ExecutionHandler(
 
 	// Call the executor to run the code and capture the result
 	// Pass the request context so execution can respond to cancellation and timeouts.
-	result, err := h.executor.Run(
-		ctx,
-		execution.Request{
-			Language: request.Language,
-			Code:     request.Code,
-		},
-	)
+
+	result, err := h.executor.Run(ctx, toExecutionRequest(request))
 
 	var unsupportedLanguageError execution.UnsupportedLanguageError
 	if err != nil {
@@ -132,5 +118,22 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 
 	if _, err := w.Write(data); err != nil {
 		log.Printf("Error writing response: %v", err)
+	}
+}
+
+func toExecutionRequest(req ExecutionRequest) execution.Request {
+	files := make([]execution.InputFile, 0, len(req.Files))
+
+	for _, file := range req.Files {
+		files = append(files, execution.InputFile{
+			Path:    file.Path,
+			Content: file.Content,
+		})
+	}
+
+	return execution.Request{
+		Language: req.Language,
+		Code:     req.Code,
+		Files:    files,
 	}
 }
