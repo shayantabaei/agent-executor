@@ -17,60 +17,31 @@ This roadmap tracks the major implementation areas for `agent-executor`.
 - Request body validation
 - Code size validation
 - Docker configuration defaults
+- Docker hardening configuration
+- Disabled Docker networking by default
+- Docker memory limits
+- Docker CPU limits
+- Docker PID limits
+- Docker `no-new-privileges`
+- Docker pull policy
+- File input request model
+- File input validation
+- Safe relative file path validation
+- Temporary execution workspace creation
+- Input file writing
+- Docker workspace mounting
+- Running code from `/workspace`
+- Workspace cleanup after execution
 - Tests for API handlers
 - Tests for runtimes
 - Tests for limited writer
 - Tests for Docker execution
+- Tests for validation
+- Tests for workspace behavior
 
 ## Current Focus
 
-### 1. Docker hardening
-
-Improve the Docker execution configuration with practical local safety controls.
-
-Potential work:
-
-- Disable unnecessary privileges
-- Add `no-new-privileges`
-- Apply memory limits
-- Apply CPU limits
-- Consider disabling network access by default
-- Consider read-only filesystem mode
-- Define writable temp locations
-- Avoid mounting sensitive host paths
-- Document tradeoffs for each Docker option
-
-### 2. File input support
-
-Allow execution requests to include files that are made available to the running code.
-
-Potential work:
-
-- Define file request model
-- Add file count limits
-- Add per-file size limits
-- Add total file size limits
-- Validate file paths
-- Reject absolute paths
-- Reject path traversal
-- Preserve nested relative directories safely
-
-### 3. Temporary workspace lifecycle
-
-Create an isolated temporary workspace for each execution.
-
-Potential work:
-
-- Create workspace before execution
-- Write input files into workspace
-- Execute code inside workspace
-- Ensure workspace path is not user-controlled
-- Clean up workspace after execution
-- Test cleanup on success
-- Test cleanup on failure
-- Test cleanup on timeout
-
-### 4. Artifact collection
+### 1. Artifact collection
 
 Allow executed code to produce files that can be returned as execution artifacts.
 
@@ -84,6 +55,33 @@ Potential work:
 - Return artifact metadata
 - Optionally return artifact content for small text files
 - Avoid exposing unsafe host paths
+- Avoid returning input files as generated artifacts unless explicitly allowed
+
+### 2. Workspace cleanup hardening
+
+Improve confidence that temporary workspaces are cleaned up correctly.
+
+Potential work:
+
+- Ensure cleanup runs after successful execution
+- Ensure cleanup runs after failed execution
+- Ensure cleanup runs after timeout
+- Add tests for cleanup behavior around executor errors
+- Add logging for cleanup failures
+- Consider making cleanup errors observable without hiding execution results
+
+### 3. Additional Docker hardening
+
+Continue improving Docker execution controls without breaking normal language runtime behavior.
+
+Potential work:
+
+- Consider read-only filesystem mode
+- Define writable temp locations if read-only mode is enabled
+- Consider running containers as a non-root user
+- Consider dropping Linux capabilities
+- Consider limiting writable directories
+- Document tradeoffs for each hardening option
 
 ## Future Ideas
 
@@ -104,6 +102,8 @@ Potential work:
 - Config validation
 - Per-runtime config
 - Per-request execution limits with maximum caps
+- Workspace size limits
+- Artifact size limits
 
 ### Observability
 
@@ -114,6 +114,7 @@ Potential work:
 - Timeout metrics
 - Error classification
 - Request IDs
+- Workspace cleanup metrics
 
 ### API improvements
 
@@ -123,6 +124,7 @@ Potential work:
 - Runtime metadata endpoint
 - Execution status model
 - More detailed validation errors
+- Artifact response model
 
 ### Developer experience
 

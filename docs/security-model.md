@@ -181,3 +181,16 @@ Not recommended usage:
 The project takes a practical defense-in-depth approach for a local execution service.
 
 It does not claim to make arbitrary code execution safe. Instead, it documents the risks clearly and implements incremental controls to reduce common failure modes.
+
+### Temporary workspace exposure
+
+Input files are written to a temporary host workspace and mounted into the container at `/workspace`.
+
+Mitigation:
+
+- File paths are validated before workspace creation
+- Absolute paths are rejected
+- Path traversal is rejected
+- Backslash-based paths are rejected to keep API paths portable
+- Each execution receives a separate temporary workspace
+- Workspaces are cleaned up after execution
