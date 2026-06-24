@@ -19,6 +19,9 @@ A local Docker-backed code execution service for AI agents.
 - Configurable Docker memory and CPU limits
 - Docker hardening controls such as disabled networking, PID limits, and `no-new-privileges`
 - Tests for API handlers, runtimes, Docker execution, validation, and workspace behavior
+- Artifact collection for generated files
+- Inline content for small UTF-8 text artifacts
+- Artifact size and count limits
 
 ## Project Status
 
@@ -26,7 +29,7 @@ Currently under active development.
 
 Current focus areas:
 
-- Artifact collection
+- Binary/base64 artifact support
 - Workspace cleanup hardening
 - Additional Docker execution hardening
 - Additional runtime support
@@ -150,6 +153,42 @@ Rejected:
 safe/../../secret.txt
 data\input.txt
 ```
+
+### Execute code with generated artifacts
+
+Executed code can create files in the workspace. Generated files are returned as artifacts in the execution response.
+
+Example request:
+
+```json
+{
+  "language": "python",
+  "code": "open(\"output.txt\", \"w\").write(\"hello artifact\")"
+}
+```
+
+Example response:
+
+```json
+{
+  "stdout": "",
+  "stderr": "",
+  "exitCode": 0,
+  "artifacts": [
+    {
+      "path": "output.txt",
+      "size": 14,
+      "content": "hello artifact",
+      "encoding": "utf-8",
+      "contentType": "text/plain; charset=utf-8"
+    }
+  ]
+}
+```
+
+Original input files are not returned as generated artifacts.
+
+Small UTF-8 text artifacts may include inline `content`. Larger files or binary files are returned as metadata-only artifacts for now.
 
 ## Supported Runtimes
 

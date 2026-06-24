@@ -194,3 +194,16 @@ Mitigation:
 - Backslash-based paths are rejected to keep API paths portable
 - Each execution receives a separate temporary workspace
 - Workspaces are cleaned up after execution
+
+### Artifact response limits
+
+Generated files can increase response size or expose data produced during execution.
+
+Mitigation:
+
+- Artifact count is limited
+- Individual artifact size is limited
+- Total artifact size is limited
+- Inline content size is limited
+- Original input files are excluded from generated artifacts
+- Binary files are returned as metadata-only artifacts for now

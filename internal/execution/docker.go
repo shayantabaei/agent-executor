@@ -55,9 +55,16 @@ func (e *DockerExecutor) Run(
 	// Run the docker command
 	err = cmd.Run()
 
+	artifacts, artifactError := ws.collectArtifacts(req.Files, e.config)
+
+	if artifactError != nil {
+		return Result{}, artifactError
+	}
+
 	result := Result{
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
+		Stdout:    stdout.String(),
+		Stderr:    stderr.String(),
+		Artifacts: artifacts,
 	}
 
 	if ctx.Err() != nil {

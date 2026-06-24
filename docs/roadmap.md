@@ -38,24 +38,29 @@ This roadmap tracks the major implementation areas for `agent-executor`.
 - Tests for Docker execution
 - Tests for validation
 - Tests for workspace behavior
+- Artifact response model
+- Generated artifact collection
+- Input file exclusion from artifacts
+- Artifact count limits
+- Individual artifact size limits
+- Total artifact size limits
+- Inline content for small UTF-8 text artifacts
+- Metadata-only handling for larger or binary artifacts
 
 ## Current Focus
 
-### 1. Artifact collection
+### 1. Binary/base64 artifact support
 
-Allow executed code to produce files that can be returned as execution artifacts.
+Support returning small binary artifacts inline using base64 encoding.
 
 Potential work:
 
-- Define artifact response model
-- Collect files from workspace after execution
-- Limit artifact count
-- Limit individual artifact size
-- Limit total artifact size
-- Return artifact metadata
-- Optionally return artifact content for small text files
-- Avoid exposing unsafe host paths
-- Avoid returning input files as generated artifacts unless explicitly allowed
+- Detect binary artifact content types
+- Base64 encode small binary artifacts
+- Apply inline binary size limits
+- Return `encoding: "base64"` for binary content
+- Return appropriate `contentType`
+- Add tests for PNG/PDF/binary artifact behavior
 
 ### 2. Workspace cleanup hardening
 
