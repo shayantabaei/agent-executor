@@ -206,3 +206,20 @@ func TestValidateExecutionRequestRejectsEmptyFilePath(t *testing.T) {
 		t.Fatalf("expected ErrInvalidFilePath, got %v", err)
 	}
 }
+
+func TestValidateExecutionRequestRejectsBackslashFilePath(t *testing.T) {
+	cfg := DefaultConfig()
+
+	req := ExecutionRequest{
+		Language: "python",
+		Code:     "print('hello')",
+		Files: []InputFile{
+			{Path: `data\input.txt`, Content: "bad"},
+		},
+	}
+
+	err := validateExecutionRequest(req, cfg)
+	if !errors.Is(err, ErrInvalidFilePath) {
+		t.Fatalf("expected ErrInvalidFilePath, got %v", err)
+	}
+}

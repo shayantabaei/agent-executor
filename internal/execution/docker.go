@@ -32,7 +32,13 @@ func (e *DockerExecutor) Run(
 		return Result{}, err
 	}
 
-	args := e.buildRunArgs(runtime)
+	ws, err := createWorkspace(req.Files)
+	if err != nil {
+		return Result{}, err
+	}
+	defer ws.cleanup()
+
+	args := e.buildRunArgs(runtime, ws.path)
 
 	// Create the command to run the Docker container with the specified arguments.
 	cmd := exec.CommandContext(ctx, "docker", args...)
@@ -72,7 +78,7 @@ func (e *DockerExecutor) Run(
 
 }
 
-func (e *DockerExecutor) buildRunArgs(runtime Runtime) []string {
+func (e *DockerExecutor) buildRunArgs(runtime Runtime, workspacePath string) []string {
 	cfg := e.config
 
 	args := []string{
@@ -103,6 +109,21 @@ func (e *DockerExecutor) buildRunArgs(runtime Runtime) []string {
 
 	if cfg.PullPolicy != "" {
 		args = append(args, "--pull", cfg.PullPolicy)
+	}
+
+	const containerWorkspacePath = "/workspace"
+
+	if workspacePath != "" {
+		// Mount the temporary host workspace into the container.
+		// --mount avoids ambiguity with Windows drive-letter paths like C:\...
+		args = append(
+			args,
+			"--mount",
+			"type=bind,source="+workspacePath+",target="+containerWorkspacePath,
+		)
+
+		// Run the user code from /workspace so relative file paths work.
+		args = append(args, "-w", containerWorkspacePath)
 	}
 
 	args = append(args, runtime.Image())

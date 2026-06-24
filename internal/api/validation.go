@@ -3,7 +3,7 @@ package api
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -62,27 +62,27 @@ func validateInputFiles(files []InputFile, cfg Config) error {
 	return nil
 }
 
-func validateInputFilePath(path string) error {
-	if strings.TrimSpace(path) == "" {
+func validateInputFilePath(filePath string) error {
+	if strings.TrimSpace(filePath) == "" {
 		return fmt.Errorf("%w: path is empty", ErrInvalidFilePath)
 	}
 
-	if filepath.IsAbs(path) {
-		return fmt.Errorf("%w: absolute paths are not allowed: %s", ErrInvalidFilePath, path)
+	if strings.HasPrefix(filePath, "/") {
+		return fmt.Errorf("%w: absolute paths are not allowed: %s", ErrInvalidFilePath, filePath)
 	}
 
-	cleaned := filepath.Clean(path)
+	if strings.Contains(filePath, "\\") {
+		return fmt.Errorf("%w: backslashes are not allowed: %s", ErrInvalidFilePath, filePath)
+	}
+
+	cleaned := path.Clean(filePath)
 
 	if cleaned == "." {
 		return fmt.Errorf("%w: path is empty", ErrInvalidFilePath)
 	}
 
 	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
-		return fmt.Errorf("%w: path traversal is not allowed: %s", ErrInvalidFilePath, path)
-	}
-
-	if strings.Contains(cleaned, string(filepath.Separator)+".."+string(filepath.Separator)) {
-		return fmt.Errorf("%w: path traversal is not allowed: %s", ErrInvalidFilePath, path)
+		return fmt.Errorf("%w: path traversal is not allowed: %s", ErrInvalidFilePath, filePath)
 	}
 
 	return nil

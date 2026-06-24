@@ -18,7 +18,7 @@ func TestDockerExecutorBuildRunArgsUsesConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	args := executor.buildRunArgs(runtime)
+	args := executor.buildRunArgs(runtime, "/tmp/workspace")
 
 	expectedPrefix := []string{
 		"run",
@@ -30,6 +30,8 @@ func TestDockerExecutorBuildRunArgsUsesConfig(t *testing.T) {
 		"--security-opt", "no-new-privileges:true",
 		"--pids-limit", "128",
 		"--pull", "never",
+		"--mount", "type=bind,source=/tmp/workspace,target=/workspace",
+		"-w", "/workspace",
 		runtime.Image(),
 	}
 
