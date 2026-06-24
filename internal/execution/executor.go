@@ -5,6 +5,12 @@ import "context"
 type Request struct {
 	Language string
 	Code     string
+	Files    []InputFile
+}
+
+type InputFile struct {
+	Path    string
+	Content string
 }
 
 type Result struct {
