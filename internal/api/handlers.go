@@ -87,11 +87,7 @@ func (h *Handler) ExecutionHandler(
 	}
 
 	// Write the execution result back as JSON
-	writeJSON(w, http.StatusOK, ExecutionResponse{
-		Stdout:   result.Stdout,
-		Stderr:   result.Stderr,
-		ExitCode: result.ExitCode,
-	})
+	writeJSON(w, http.StatusOK, toExecutionResponse(result))
 }
 
 func (h *Handler) RuntimesHandler(w http.ResponseWriter, r *http.Request) {
@@ -135,5 +131,26 @@ func toExecutionRequest(req ExecutionRequest) execution.Request {
 		Language: req.Language,
 		Code:     req.Code,
 		Files:    files,
+	}
+}
+
+func toExecutionResponse(result execution.Result) ExecutionResponse {
+	artifacts := make([]ArtifactResponse, 0, len(result.Artifacts))
+
+	for _, artifact := range result.Artifacts {
+		artifacts = append(artifacts, ArtifactResponse{
+			Path:        artifact.Path,
+			Size:        artifact.Size,
+			Content:     artifact.Content,
+			Encoding:    artifact.Encoding,
+			ContentType: artifact.ContentType,
+		})
+	}
+
+	return ExecutionResponse{
+		Stdout:    result.Stdout,
+		Stderr:    result.Stderr,
+		ExitCode:  result.ExitCode,
+		Artifacts: artifacts,
 	}
 }

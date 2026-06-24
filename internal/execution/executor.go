@@ -14,9 +14,18 @@ type InputFile struct {
 }
 
 type Result struct {
-	Stdout   string
-	Stderr   string
-	ExitCode int
+	Stdout    string
+	Stderr    string
+	ExitCode  int
+	Artifacts []Artifact
+}
+
+type Artifact struct {
+	Path        string
+	Size        int64
+	Content     string
+	Encoding    string
+	ContentType string
 }
 
 // Executor executes code in a supported programming language.
