@@ -10,14 +10,24 @@ Docker provides useful isolation, but Docker should not be treated as a complete
 
 The service aims to provide practical guardrails for local agent execution workflows.
 
-Current and planned controls include:
+Current controls include:
 
 - Limit execution time
 - Limit captured output size
 - Limit request body size
 - Limit code payload size
+- Limit input file count
+- Limit individual input file size
+- Limit total input file size
+- Limit artifact count
+- Limit individual artifact size
+- Limit total artifact size
+- Limit inline artifact content size
 - Apply Docker memory limits
 - Apply Docker CPU limits
+- Disable Docker networking by default
+- Apply Docker PID limits
+- Restrict privilege escalation with `no-new-privileges`
 - Avoid exposing host files by default
 - Validate file paths before creating workspaces
 - Use temporary workspaces for file input and artifact output
@@ -35,6 +45,7 @@ Current and planned controls include:
 - Abuse prevention for public unauthenticated APIs
 - Guaranteed network isolation beyond configured Docker behavior
 - Protection from every possible denial-of-service vector
+- Long-term storage of execution files or artifacts
 
 ## Threats considered
 
@@ -70,6 +81,16 @@ Mitigation:
 
 - Code size validation
 
+### Excessive input files
+
+Clients may send too many input files or files that are too large.
+
+Mitigation:
+
+- Maximum input file count
+- Maximum individual input file size
+- Maximum total input file size
+
 ### Excessive memory usage
 
 User code may allocate too much memory.
@@ -86,9 +107,25 @@ Mitigation:
 
 - Docker CPU limits
 
+### Excessive process creation
+
+User code may attempt to create many processes.
+
+Mitigation:
+
+- Docker PID limits
+
+### Network abuse
+
+User code may attempt to access external networks.
+
+Mitigation:
+
+- Docker networking is disabled by default with `--network none`
+
 ### Path traversal
 
-File support may introduce risks where users attempt to write outside the intended workspace.
+File support introduces risks where users attempt to write outside the intended workspace.
 
 Examples:
 
@@ -96,12 +133,15 @@ Examples:
 ../secret.txt
 ../../etc/passwd
 /tmp/unsafe.txt
+safe/../../secret.txt
 ```
 
-Planned mitigation:
+Mitigation:
 
 - Reject absolute paths
 - Reject path traversal
+- Reject empty paths
+- Reject backslash-based paths
 - Normalize and validate paths
 - Ensure all files remain inside the temporary workspace
 
@@ -112,9 +152,23 @@ Mounting host directories into containers can expose sensitive files.
 Mitigation:
 
 - Avoid mounting sensitive host paths
-- Use temporary workspaces
+- Use temporary execution workspaces
 - Keep workspace scope narrow
+- Mount only the temporary workspace into the container
 - Clean up workspace after execution
+
+### Generated artifact abuse
+
+Executed code may create many files, large files, or files that are unsafe to inline in the API response.
+
+Mitigation:
+
+- Artifact count is limited
+- Individual artifact size is limited
+- Total artifact size is limited
+- Inline artifact content size is limited
+- Original input files are excluded from generated artifacts
+- Binary files are returned as metadata-only artifacts for now
 
 ## Docker execution hardening
 
@@ -126,8 +180,43 @@ The Docker execution command applies a small set of practical hardening controls
 - Process creation is limited with `--pids-limit`
 - Privilege escalation is restricted with `--security-opt no-new-privileges:true`
 - Runtime images are not pulled implicitly when pull policy is set to `never`
+- The temporary workspace is mounted into the container at `/workspace`
+- The container runs with `/workspace` as its working directory
 
 These controls reduce common local execution risks, but they do not make arbitrary code execution safe.
+
+## Temporary workspace exposure
+
+Input files are written to a temporary host workspace and mounted into the container at `/workspace`.
+
+Mitigation:
+
+- File paths are validated before workspace creation
+- Absolute paths are rejected
+- Path traversal is rejected
+- Empty paths are rejected
+- Backslash-based paths are rejected to keep API paths portable
+- Each execution receives a separate temporary workspace
+- Workspaces are cleaned up after execution
+
+The workspace is intentionally short-lived and scoped to a single execution request.
+
+## Artifact response limits
+
+Generated files can increase response size or expose data produced during execution.
+
+Mitigation:
+
+- Artifact count is limited
+- Individual artifact size is limited
+- Total artifact size is limited
+- Inline content size is limited
+- Original input files are excluded from generated artifacts
+- Binary files are returned as metadata-only artifacts for now
+
+Small UTF-8 text artifacts may be returned inline in the API response.
+
+Larger files and binary files are returned as metadata-only artifacts for now. Future binary artifact support may add base64-encoded content for small binary files.
 
 ## Risks that remain
 
@@ -138,25 +227,32 @@ Remaining risks include:
 - Container escape vulnerabilities
 - Bugs in Docker configuration
 - Bugs in path validation
+- Bugs in artifact collection
 - Bugs in workspace cleanup
 - Network abuse if networking is enabled
 - Disk usage abuse if workspace limits are incomplete
 - Malicious code targeting the Docker daemon or host environment
 - Resource exhaustion outside configured limits
+- Sensitive data exposure if unsafe host paths are mounted in the future
+- Unsafe behavior if this service is exposed publicly without authentication
 
-### Read-only filesystem mode
+## Read-only filesystem mode
 
 Read-only container filesystems are not enabled yet.
 
 A read-only filesystem is a useful hardening control, but it requires a clear writable workspace model. Many runtimes expect writable temporary directories, caches, or working directories. Enabling `--read-only` before defining those writable locations could break normal Python or JavaScript execution.
 
-This will be revisited with temporary workspace support, where the project can define:
+This will be revisited now that temporary workspace support exists.
 
-- where input files are written
-- where code is executed
-- which temporary directories are writable
-- where generated artifacts are collected
-- how workspaces are cleaned up
+Future work may define:
+
+- Where input files are written
+- Where code is executed
+- Which temporary directories are writable
+- Where generated artifacts are collected
+- How workspaces are cleaned up
+- Whether runtime-specific writable paths are needed
+- Whether `--read-only` can be enabled safely by default
 
 ## Intended usage
 
@@ -181,29 +277,3 @@ Not recommended usage:
 The project takes a practical defense-in-depth approach for a local execution service.
 
 It does not claim to make arbitrary code execution safe. Instead, it documents the risks clearly and implements incremental controls to reduce common failure modes.
-
-### Temporary workspace exposure
-
-Input files are written to a temporary host workspace and mounted into the container at `/workspace`.
-
-Mitigation:
-
-- File paths are validated before workspace creation
-- Absolute paths are rejected
-- Path traversal is rejected
-- Backslash-based paths are rejected to keep API paths portable
-- Each execution receives a separate temporary workspace
-- Workspaces are cleaned up after execution
-
-### Artifact response limits
-
-Generated files can increase response size or expose data produced during execution.
-
-Mitigation:
-
-- Artifact count is limited
-- Individual artifact size is limited
-- Total artifact size is limited
-- Inline content size is limited
-- Original input files are excluded from generated artifacts
-- Binary files are returned as metadata-only artifacts for now
