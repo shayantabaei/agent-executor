@@ -2,7 +2,7 @@
 
 `agent-executor` is organized around a small HTTP API, a runtime abstraction, a temporary workspace lifecycle, artifact collection, and a Docker-backed execution service.
 
-The service accepts code execution requests, validates them, writes optional input files into a temporary workspace, executes the code inside Docker, captures output, collects generated artifacts, cleans up the workspace, and returns a normalized JSON response.
+The service accepts code execution requests, validates them, writes optional input files into a temporary workspace, executes code inside Docker, captures output, collects generated artifacts, cleans up the workspace, and returns a normalized JSON response.
 
 ## Core Flow
 
@@ -15,7 +15,7 @@ The service accepts code execution requests, validates them, writes optional inp
 7. Docker execution layer starts a container with configured limits.
 8. Workspace is mounted into the container at `/workspace`.
 9. Code runs inside the container with `/workspace` as the working directory.
-10. Output is captured through a limited writer.
+10. Output is captured through limited writers.
 11. Generated artifacts are collected from the workspace.
 12. Workspace is cleaned up.
 13. Execution result is returned as JSON.
@@ -91,7 +91,7 @@ Responsibilities:
 
 Runtimes define how a language should be executed.
 
-Each runtime is responsible for describing the command or container execution behavior needed for a specific language.
+Each runtime is responsible for describing the command and execution behavior needed for a specific language.
 
 Current runtimes:
 
@@ -155,11 +155,11 @@ Responsibilities:
 - Stop execution when timeout is reached
 - Return the exit code and output
 
-### Limited Writer
+### Limited Writers
 
-The limited writer prevents unbounded output from consuming too much memory.
+Limited writers prevent unbounded output from consuming too much memory.
 
-It caps how much stdout and stderr can be captured from a running execution.
+They cap how much stdout and stderr can be captured from a running execution.
 
 This protects the service from code that prints excessively or produces unexpectedly large output.
 
@@ -195,10 +195,10 @@ Larger files and binary files are returned as metadata-only artifacts for now.
 
 Artifact collection applies configurable limits:
 
-- maximum artifact count
-- maximum individual artifact size
-- maximum total artifact size
-- maximum inline artifact content size
+- Maximum artifact count
+- Maximum individual artifact size
+- Maximum total artifact size
+- Maximum inline artifact content size
 
 Future binary artifact support may add base64-encoded content for small binary files.
 

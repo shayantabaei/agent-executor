@@ -2,7 +2,7 @@
 
 A local Docker-backed code execution service for AI agents.
 
-`agent-executor` exposes an API that allows agents, developer tools, or local workflows to execute short code snippets inside Docker containers with practical execution controls.
+`agent-executor` exposes an HTTP API that allows agents, developer tools, and local workflows to execute short code snippets inside Docker containers with practical execution controls.
 
 ## Features
 
@@ -18,10 +18,10 @@ A local Docker-backed code execution service for AI agents.
 - Docker workspace mounting
 - Configurable Docker memory and CPU limits
 - Docker hardening controls such as disabled networking, PID limits, and `no-new-privileges`
-- Tests for API handlers, runtimes, Docker execution, validation, and workspace behavior
 - Artifact collection for generated files
 - Inline content for small UTF-8 text artifacts
 - Artifact size and count limits
+- Tests for API handlers, runtimes, Docker execution, validation, workspace behavior, and artifact collection
 
 ## Project Status
 
@@ -37,9 +37,11 @@ Current focus areas:
 
 ## Why this exists
 
-There is an increasing need for AI agents to execute code as part of a workflow in a safe manner. This project explores what a small, local-first execution service might look like for that use case.
+There is an increasing need for AI agents to execute code as part of a workflow.
 
-The goal is not to build a production-grade sandbox, but rather to build a testable, extensible execution service with practical guardrails and documented tradeoffs.
+This project explores what a small, local-first execution service for that use case might look like.
+
+The goal is not to build a production-grade sandbox. The goal is to build a testable, extensible execution service with practical guardrails and documented tradeoffs.
 
 ## Security Model
 
@@ -63,56 +65,58 @@ See [docs/roadmap.md](docs/roadmap.md).
 
 ### Health check
 
-```http
+~~~http
 GET /health
-```
+~~~
 
 Returns service health.
 
 ### List runtimes
 
-```http
+~~~http
 GET /runtimes
-```
+~~~
 
 Returns the available execution runtimes.
 
 ### Execute code
 
-```http
+~~~http
 POST /executions
-```
+~~~
 
 Executes code in one of the supported runtimes.
 
 Example request:
 
-```json
+~~~json
 {
   "language": "python",
   "code": "print('hello from python')"
 }
-```
+~~~
 
 Example response:
 
-```json
+~~~json
 {
   "stdout": "hello from python\n",
   "stderr": "",
   "exitCode": 0
 }
-```
+~~~
 
 ### Execute code with input files
 
 Execution requests may include input files.
 
-Input files are validated by the API layer, written to a temporary host workspace, and mounted into the Docker container at `/workspace`. Code runs from `/workspace`, so relative paths such as `data/input.txt` work inside the execution.
+Input files are validated by the API layer, written to a temporary host workspace, and mounted into the Docker container at `/workspace`.
+
+Code runs from `/workspace`, so relative paths such as `data/input.txt` work inside the execution.
 
 Example request:
 
-```json
+~~~json
 {
   "language": "python",
   "code": "print(open(\"data/input.txt\").read())",
@@ -123,53 +127,57 @@ Example request:
     }
   ]
 }
-```
+~~~
 
 Example response:
 
-```json
+~~~json
 {
   "stdout": "hello from workspace\n",
   "stderr": "",
   "exitCode": 0
 }
-```
+~~~
 
-Input file paths must be safe relative paths. Absolute paths, path traversal, empty paths, and backslash-based paths are rejected.
+Input file paths must be safe relative paths.
 
-Supported:
+Supported paths:
 
-```text
+~~~text
 data/input.txt
 src/main.py
 fixtures/sample.json
-```
+~~~
 
-Rejected:
+Rejected paths:
 
-```text
+~~~text
 /etc/passwd
 ../secret.txt
 safe/../../secret.txt
 data\input.txt
-```
+~~~
+
+Absolute paths, parent directory traversal, empty paths, and backslash-based paths are rejected.
 
 ### Execute code with generated artifacts
 
 Executed code can create files in the workspace. Generated files are returned as artifacts in the execution response.
 
+Original input files are not returned as generated artifacts.
+
 Example request:
 
-```json
+~~~json
 {
   "language": "python",
   "code": "open(\"output.txt\", \"w\").write(\"hello artifact\")"
 }
-```
+~~~
 
 Example response:
 
-```json
+~~~json
 {
   "stdout": "",
   "stderr": "",
@@ -184,11 +192,49 @@ Example response:
     }
   ]
 }
-```
+~~~
 
-Original input files are not returned as generated artifacts.
+Small UTF-8 text artifacts may include inline `content`.
 
-Small UTF-8 text artifacts may include inline `content`. Larger files or binary files are returned as metadata-only artifacts for now.
+Larger files or binary files are returned as metadata-only artifacts for now.
+
+### Execute code with input files and artifacts
+
+Input files and generated artifacts can be used together.
+
+Example request:
+
+~~~json
+{
+  "language": "python",
+  "code": "message = open(\"input/message.txt\").read()\nopen(\"output/result.txt\", \"w\").write(message.upper())",
+  "files": [
+    {
+      "path": "input/message.txt",
+      "content": "hello from input file"
+    }
+  ]
+}
+~~~
+
+Example response:
+
+~~~json
+{
+  "stdout": "",
+  "stderr": "",
+  "exitCode": 0,
+  "artifacts": [
+    {
+      "path": "output/result.txt",
+      "size": 21,
+      "content": "HELLO FROM INPUT FILE",
+      "encoding": "utf-8",
+      "contentType": "text/plain; charset=utf-8"
+    }
+  ]
+}
+~~~
 
 ## Supported Runtimes
 
@@ -201,12 +247,12 @@ Small UTF-8 text artifacts may include inline `content`. Larger files or binary 
 
 Run tests:
 
-```bash
+~~~bash
 go test ./...
-```
+~~~
 
 Run the service:
 
-```bash
+~~~bash
 go run ./cmd/server
-```
+~~~
