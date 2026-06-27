@@ -6,13 +6,12 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/shayantabaei/agent-executor/internal/execution"
 )
 
 type Handler struct {
-	executor execution.Executor
+	executor *execution.Service
 	config   Config
 }
 
@@ -21,7 +20,10 @@ func NewHandler(executor execution.Executor) *Handler {
 }
 
 func NewHandlerWithConfig(executor execution.Executor, config Config) *Handler {
-	return &Handler{executor: executor, config: config}
+	return &Handler{
+		executor: execution.NewService(executor),
+		config:   config,
+	}
 }
 
 // HealthHandler reports whether the HTTP server is running.
@@ -62,14 +64,9 @@ func (h *Handler) ExecutionHandler(
 		return
 	}
 
-	// Create a 5 second timeout context for the execution request to prevent long-running code.
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
 	// Call the executor to run the code and capture the result
 	// Pass the request context so execution can respond to cancellation and timeouts.
-
-	result, err := h.executor.Run(ctx, toExecutionRequest(request))
+	result, err := h.executor.Run(r.Context(), toExecutionRequest(request))
 
 	var unsupportedLanguageError execution.UnsupportedLanguageError
 	if err != nil {
