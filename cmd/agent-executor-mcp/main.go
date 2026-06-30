@@ -1,4 +1,4 @@
-package agentexecutormcp
+package main
 
 import (
 	"context"
