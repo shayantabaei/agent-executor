@@ -24,6 +24,7 @@ func TestDockerExecutorBuildRunArgsUsesConfig(t *testing.T) {
 		"run",
 		"--rm",
 		"-i",
+		"--name", "test-container",
 		"--network", "none",
 		"--memory", "128m",
 		"--cpus", "0.5",

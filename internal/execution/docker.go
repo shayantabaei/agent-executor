@@ -61,24 +61,26 @@ func (e *DockerExecutor) Run(
 	// Run the docker command
 	err = cmd.Run()
 
+	if ctx.Err() == context.DeadlineExceeded {
+		_ = exec.Command("docker", "rm", "-f", containerName).Run()
+		return Result{}, ctx.Err()
+	}
+
+	if ctx.Err() != nil {
+		_ = exec.Command("docker", "rm", "-f", containerName).Run()
+		return Result{}, ctx.Err()
+	}
+
 	artifacts, artifactError := ws.collectArtifacts(req.Files, e.config)
 
 	if artifactError != nil {
 		return Result{}, artifactError
 	}
 
-	if ctx.Err() == context.DeadlineExceeded {
-		_ = exec.Command("docker", "rm", "-f", containerName).Run()
-		return Result{}, ctx.Err()
-	}
 	result := Result{
 		Stdout:    stdout.String(),
 		Stderr:    stderr.String(),
 		Artifacts: artifacts,
-	}
-
-	if ctx.Err() != nil {
-		return Result{}, ctx.Err()
 	}
 
 	if err == nil {
