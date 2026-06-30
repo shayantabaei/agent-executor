@@ -11,8 +11,8 @@ import (
 )
 
 type Handler struct {
-	executor *execution.Service
-	config   Config
+	service *execution.Service
+	config  Config
 }
 
 func NewHandler(executor execution.Executor) *Handler {
@@ -21,8 +21,8 @@ func NewHandler(executor execution.Executor) *Handler {
 
 func NewHandlerWithConfig(executor execution.Executor, config Config) *Handler {
 	return &Handler{
-		executor: execution.NewService(executor),
-		config:   config,
+		service: execution.NewService(executor),
+		config:  config,
 	}
 }
 
@@ -32,8 +32,8 @@ func NewHandlerWithConfigs(
 	serviceConfig execution.ServiceConfig,
 ) *Handler {
 	return &Handler{
-		executor: execution.NewServiceWithConfig(executor, serviceConfig),
-		config:   config,
+		service: execution.NewServiceWithConfig(executor, serviceConfig),
+		config:  config,
 	}
 }
 
@@ -72,7 +72,7 @@ func (h *Handler) ExecutionHandler(
 
 	// Call the executor to run the code and capture the result
 	// Pass the request context so execution can respond to cancellation and timeouts.
-	result, err := h.executor.Run(r.Context(), toExecutionRequest(request))
+	result, err := h.service.Run(r.Context(), toExecutionRequest(request))
 
 	var unsupportedLanguageError execution.UnsupportedLanguageError
 	if err != nil {
