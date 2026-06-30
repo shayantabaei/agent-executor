@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	logger := log.New(os.Stdout, "", log.LstdFlags)
+	logger := log.New(os.Stderr, "", log.LstdFlags)
 
 	service := execution.NewServiceWithConfig(
 		execution.NewDockerExecutor(),
