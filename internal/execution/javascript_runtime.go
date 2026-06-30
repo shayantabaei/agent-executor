@@ -1,11 +1,11 @@
 package execution
 
-type JavaScriptRunetime struct{}
+type JavaScriptRuntime struct{}
 
-func (JavaScriptRunetime) Image() string {
+func (JavaScriptRuntime) Image() string {
 	return "node:22-alpine"
 }
 
-func (JavaScriptRunetime) Command() []string {
+func (JavaScriptRuntime) Command() []string {
 	return []string{"node"}
 }

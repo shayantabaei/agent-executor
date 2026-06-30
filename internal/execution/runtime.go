@@ -29,7 +29,7 @@ func runtimeForLanguage(language string) (Runtime, error) {
 	case "python":
 		return PythonRuntime{}, nil
 	case "javascript":
-		return JavaScriptRunetime{}, nil
+		return JavaScriptRuntime{}, nil
 	default:
 		return nil, UnsupportedLanguageError{Language: language}
 	}
