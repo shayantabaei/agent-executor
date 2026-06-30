@@ -26,6 +26,17 @@ func NewHandlerWithConfig(executor execution.Executor, config Config) *Handler {
 	}
 }
 
+func NewHandlerWithConfigs(
+	executor execution.Executor,
+	config Config,
+	serviceConfig execution.ServiceConfig,
+) *Handler {
+	return &Handler{
+		executor: execution.NewServiceWithConfig(executor, serviceConfig),
+		config:   config,
+	}
+}
+
 // HealthHandler reports whether the HTTP server is running.
 func (h *Handler) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -59,17 +70,17 @@ func (h *Handler) ExecutionHandler(
 		return
 	}
 
-	if err := validateExecutionRequest(request, h.config); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
 	// Call the executor to run the code and capture the result
 	// Pass the request context so execution can respond to cancellation and timeouts.
 	result, err := h.executor.Run(r.Context(), toExecutionRequest(request))
 
 	var unsupportedLanguageError execution.UnsupportedLanguageError
 	if err != nil {
+		if execution.IsValidationError(err) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "Execution timed out", http.StatusRequestTimeout)
 			return
