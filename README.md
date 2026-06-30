@@ -256,3 +256,49 @@ Run the service:
 ~~~bash
 go run ./cmd/server
 ~~~
+
+## MCP stdio server
+
+agent-executor can also run as a local MCP stdio server for MCP-compatible clients.
+
+The MCP server exposes:
+
+- Tool: `execute_code`
+- Resource: `agent-executor://runtimes`
+- Resource: `agent-executor://capabilities`
+
+The MCP tool calls the same execution service as the HTTP API, so request validation, execution timeouts, runtime limits, workspace handling, and artifact collection stay centralized in the execution layer.
+
+Run the MCP server:
+
+```bash
+go run ./cmd/agent-executor-mcp
+```
+
+Because MCP stdio uses stdout for JSON-RPC protocol messages, the server writes logs to stderr only.
+
+## Development
+
+Run tests:
+
+```bash
+go test ./...
+```
+
+Run vulnerability checks:
+
+```bash
+govulncheck ./...
+```
+
+Run the HTTP service:
+
+```bash
+go run ./cmd/server
+```
+
+Run the MCP stdio server:
+
+```bash
+go run ./cmd/agent-executor-mcp
+```

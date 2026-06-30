@@ -1,14 +1,14 @@
 # Architecture
 
-`agent-executor` is organized around a small HTTP API, a runtime abstraction, a temporary workspace lifecycle, artifact collection, and a Docker-backed execution service.
+`agent-executor` is organized around a small HTTP API, an MCP stdio server, a runtime abstraction, a temporary workspace lifecycle, artifact collection, and a Docker-backed execution service.
 
-The service accepts code execution requests, validates them, writes optional input files into a temporary workspace, executes code inside Docker, captures output, collects generated artifacts, cleans up the workspace, and returns a normalized JSON response.
+The service accepts code execution requests through HTTP or MCP, validates them, writes optional input files into a temporary workspace, executes code inside Docker, captures output, collects generated artifacts, cleans up the workspace, and returns a normalized result.
 
 ## Core Flow
 
-1. Client sends an execution request.
-2. API layer validates request body size, code size, and optional input files.
-3. Execution service selects the requested runtime.
+1. Client sends an execution request through HTTP or MCP.
+2. The entrypoint layer decodes the request and applies entrypoint-specific validation such as HTTP request body size limits.
+3. Execution service validates execution limits and selects the requested runtime.
 4. Runtime defines how the code should be executed.
 5. Temporary workspace is created.
 6. Input files are written into the workspace.
@@ -18,7 +18,7 @@ The service accepts code execution requests, validates them, writes optional inp
 10. Output is captured through limited writers.
 11. Generated artifacts are collected from the workspace.
 12. Workspace is cleaned up.
-13. Execution result is returned as JSON.
+13. Execution result is returned to the caller.
 
 ## Components
 
@@ -29,8 +29,6 @@ The API layer is responsible for:
 - HTTP routing
 - Request decoding
 - Request body size validation
-- Code size validation
-- Input file validation
 - Response formatting
 - Mapping errors to HTTP status codes
 
@@ -40,13 +38,51 @@ Current endpoints:
 - `GET /runtimes`
 - `POST /executions`
 
+### MCP Server
+
+The MCP server exposes agent-executor as a local Model Context Protocol stdio server for MCP-compatible clients.
+
+The MCP server lives under:
+
+```text
+cmd/agent-executor-mcp
+internal/mcpserver
+```
+
+The MCP server exposes:
+
+- Tool: `execute_code`
+- Resource: `agent-executor://runtimes`
+- Resource: `agent-executor://capabilities`
+
+MCP requests do not call the HTTP API. The MCP tool calls the shared execution service directly:
+
+```text
+MCP client
+  -> MCP stdio server
+  -> Execution service
+  -> Runtime selection
+  -> Temporary workspace creation
+  -> Docker execution with workspace mounted at /workspace
+  -> Limited output capture
+  -> Artifact collection
+  -> Workspace cleanup
+  -> MCP tool result
+```
+
+This keeps execution validation, timeout handling, runtime lookup, file input handling, workspace creation, Docker execution, and artifact collection centralized in the execution package.
+
+Because MCP stdio uses stdout for JSON-RPC protocol messages, the MCP server must not write logs or debug output to stdout. Logs should be written to stderr.
+
 ### Request Validation
 
 Execution requests are validated before they reach the Docker execution layer.
 
+HTTP-specific request validation, such as request body size validation, happens in the API layer. Execution-specific validation happens in the execution service so both HTTP and MCP requests share the same execution limits.
+
 Validation includes:
 
-- Required language
+- Required language/runtime
 - Required code
 - Maximum code size
 - Maximum file count
@@ -204,12 +240,13 @@ Future binary artifact support may add base64-encoded content for small binary f
 
 ## Current Execution Model
 
-The current execution model is:
+The HTTP execution model is:
 
 ```text
 HTTP request
-  -> API validation
+  -> API request decoding/body size validation
   -> Execution service
+  -> Request validation
   -> Runtime selection
   -> Temporary workspace creation
   -> Input file writing
@@ -220,15 +257,38 @@ HTTP request
   -> JSON response
 ```
 
+The MCP execution model is:
+
+```text
+MCP client
+  -> MCP stdio server
+  -> Execution service
+  -> Request validation
+  -> Runtime selection
+  -> Temporary workspace creation
+  -> Input file writing
+  -> Docker execution with workspace mounted at /workspace
+  -> Limited output capture
+  -> Artifact collection
+  -> Workspace cleanup
+  -> MCP tool result
+```
+
 ## Design Principles
 
 ### Keep the API small
 
 The API should stay focused on execution workflows.
 
+### Keep entrypoints thin
+
+HTTP and MCP entrypoints should decode requests, call the shared execution service, and format responses for their respective protocols.
+
+Execution behavior should stay centralized in the execution layer rather than being duplicated across entrypoints.
+
 ### Keep runtimes isolated
 
-Language-specific behavior should live in runtime implementations rather than spreading across the API or Docker execution code.
+Language-specific behavior should live in runtime implementations rather than spreading across the API, MCP server, or Docker execution code.
 
 ### Validate before execution
 
@@ -269,3 +329,5 @@ Important behavior should be covered by tests, especially:
 - Artifact collection
 - Artifact limits
 - Workspace cleanup
+- MCP resource listing and reading
+- MCP tool execution behavior
