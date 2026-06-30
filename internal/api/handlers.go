@@ -6,14 +6,13 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/shayantabaei/agent-executor/internal/execution"
 )
 
 type Handler struct {
-	executor execution.Executor
-	config   Config
+	service *execution.Service
+	config  Config
 }
 
 func NewHandler(executor execution.Executor) *Handler {
@@ -21,7 +20,21 @@ func NewHandler(executor execution.Executor) *Handler {
 }
 
 func NewHandlerWithConfig(executor execution.Executor, config Config) *Handler {
-	return &Handler{executor: executor, config: config}
+	return &Handler{
+		service: execution.NewService(executor),
+		config:  config,
+	}
+}
+
+func NewHandlerWithConfigs(
+	executor execution.Executor,
+	config Config,
+	serviceConfig execution.ServiceConfig,
+) *Handler {
+	return &Handler{
+		service: execution.NewServiceWithConfig(executor, serviceConfig),
+		config:  config,
+	}
 }
 
 // HealthHandler reports whether the HTTP server is running.
@@ -57,28 +70,25 @@ func (h *Handler) ExecutionHandler(
 		return
 	}
 
-	if err := validateExecutionRequest(request, h.config); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	// Create a 5 second timeout context for the execution request to prevent long-running code.
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
-
 	// Call the executor to run the code and capture the result
 	// Pass the request context so execution can respond to cancellation and timeouts.
-
-	result, err := h.executor.Run(ctx, toExecutionRequest(request))
+	result, err := h.service.Run(r.Context(), toExecutionRequest(request))
 
 	var unsupportedLanguageError execution.UnsupportedLanguageError
 	if err != nil {
+		if execution.IsValidationError(err) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
 		if errors.Is(err, context.DeadlineExceeded) {
 			http.Error(w, "Execution timed out", http.StatusRequestTimeout)
+			return
 		}
 
 		if errors.As(err, &unsupportedLanguageError) {
 			http.Error(w, unsupportedLanguageError.Error(), http.StatusBadRequest)
+			return
 		}
 
 		log.Printf("Error executing code: %v", err)

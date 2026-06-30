@@ -1,4 +1,4 @@
-package api
+package execution
 
 import (
 	"errors"
@@ -6,22 +6,22 @@ import (
 )
 
 func TestValidateExecutionRequestAllowsValidRequestWithoutFiles(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 	}
 
-	if err := validateExecutionRequest(req, cfg); err != nil {
+	if err := validateRequest(req, cfg); err != nil {
 		t.Fatalf("expected valid request, got error: %v", err)
 	}
 }
 
 func TestValidateExecutionRequestAllowsSafeNestedFilePaths(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -36,57 +36,57 @@ func TestValidateExecutionRequestAllowsSafeNestedFilePaths(t *testing.T) {
 		},
 	}
 
-	if err := validateExecutionRequest(req, cfg); err != nil {
+	if err := validateRequest(req, cfg); err != nil {
 		t.Fatalf("expected valid request, got error: %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsMissingLanguage(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Code: "print('hello')",
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrLanguageRequired) {
 		t.Fatalf("expected ErrLanguageRequired, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsMissingCode(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrCodeRequired) {
 		t.Fatalf("expected ErrCodeRequired, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsCodeOverLimit(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 	cfg.MaxCodeSize = 3
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "abcd",
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrCodeTooLarge) {
 		t.Fatalf("expected ErrCodeTooLarge, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsTooManyFiles(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 	cfg.MaxFileCount = 1
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -95,17 +95,17 @@ func TestValidateExecutionRequestRejectsTooManyFiles(t *testing.T) {
 		},
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrTooManyFiles) {
 		t.Fatalf("expected ErrTooManyFiles, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsLargeFile(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 	cfg.MaxFileSizeBytes = 3
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -113,18 +113,18 @@ func TestValidateExecutionRequestRejectsLargeFile(t *testing.T) {
 		},
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrFileTooLarge) {
 		t.Fatalf("expected ErrFileTooLarge, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsLargeTotalFileSize(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 	cfg.MaxFileSizeBytes = 10
 	cfg.MaxTotalFileSize = 5
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -133,16 +133,16 @@ func TestValidateExecutionRequestRejectsLargeTotalFileSize(t *testing.T) {
 		},
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrTotalFilesTooLarge) {
 		t.Fatalf("expected ErrTotalFilesTooLarge, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsAbsoluteFilePath(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -150,16 +150,16 @@ func TestValidateExecutionRequestRejectsAbsoluteFilePath(t *testing.T) {
 		},
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrInvalidFilePath) {
 		t.Fatalf("expected ErrInvalidFilePath, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsPathTraversal(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -167,16 +167,16 @@ func TestValidateExecutionRequestRejectsPathTraversal(t *testing.T) {
 		},
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrInvalidFilePath) {
 		t.Fatalf("expected ErrInvalidFilePath, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsNestedPathTraversal(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -184,16 +184,16 @@ func TestValidateExecutionRequestRejectsNestedPathTraversal(t *testing.T) {
 		},
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrInvalidFilePath) {
 		t.Fatalf("expected ErrInvalidFilePath, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsEmptyFilePath(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -201,16 +201,16 @@ func TestValidateExecutionRequestRejectsEmptyFilePath(t *testing.T) {
 		},
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrInvalidFilePath) {
 		t.Fatalf("expected ErrInvalidFilePath, got %v", err)
 	}
 }
 
 func TestValidateExecutionRequestRejectsBackslashFilePath(t *testing.T) {
-	cfg := DefaultConfig()
+	cfg := DefaultServiceConfig()
 
-	req := ExecutionRequest{
+	req := Request{
 		Language: "python",
 		Code:     "print('hello')",
 		Files: []InputFile{
@@ -218,7 +218,7 @@ func TestValidateExecutionRequestRejectsBackslashFilePath(t *testing.T) {
 		},
 	}
 
-	err := validateExecutionRequest(req, cfg)
+	err := validateRequest(req, cfg)
 	if !errors.Is(err, ErrInvalidFilePath) {
 		t.Fatalf("expected ErrInvalidFilePath, got %v", err)
 	}

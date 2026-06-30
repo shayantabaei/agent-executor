@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/shayantabaei/agent-executor/internal/execution"
 )
@@ -116,10 +117,19 @@ func TestExecutionHandlerReturnsInternalServerError(t *testing.T) {
 }
 
 func TestExecutionHandlerRejectsCodeOverLimit(t *testing.T) {
-	handler := NewHandlerWithConfig(stubExecutor{}, Config{
-		MaxBodySize: 1024,
-		MaxCodeSize: 10,
-	})
+	handler := NewHandlerWithConfigs(
+		stubExecutor{},
+		Config{
+			MaxBodySize: 1024,
+		},
+		execution.ServiceConfig{
+			Timeout:          5 * time.Second,
+			MaxCodeSize:      5,
+			MaxFileCount:     10,
+			MaxFileSizeBytes: 64 * 1024,
+			MaxTotalFileSize: 256 * 1024,
+		},
+	)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
@@ -140,10 +150,19 @@ func TestExecutionHandlerRejectsCodeOverLimit(t *testing.T) {
 }
 
 func TestExecutionHandlerRejectsBodyOverLimit(t *testing.T) {
-	handler := NewHandlerWithConfig(stubExecutor{}, Config{
-		MaxBodySize: 10,
-		MaxCodeSize: 64 * 1024,
-	})
+	handler := NewHandlerWithConfigs(
+		stubExecutor{},
+		Config{
+			MaxBodySize: 1024,
+		},
+		execution.ServiceConfig{
+			Timeout:          5 * time.Second,
+			MaxCodeSize:      5,
+			MaxFileCount:     10,
+			MaxFileSizeBytes: 64 * 1024,
+			MaxTotalFileSize: 256 * 1024,
+		},
+	)
 
 	req := httptest.NewRequest(
 		http.MethodPost,
