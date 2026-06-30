@@ -273,3 +273,32 @@ Run the MCP server:
 
 ```bash
 go run ./cmd/agent-executor-mcp
+```
+
+Because MCP stdio uses stdout for JSON-RPC protocol messages, the server writes logs to stderr only.
+
+## Development
+
+Run tests:
+
+```bash
+go test ./...
+```
+
+Run vulnerability checks:
+
+```bash
+govulncheck ./...
+```
+
+Run the HTTP service:
+
+```bash
+go run ./cmd/server
+```
+
+Run the MCP stdio server:
+
+```bash
+go run ./cmd/agent-executor-mcp
+```

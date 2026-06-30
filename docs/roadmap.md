@@ -2,7 +2,7 @@
 
 This roadmap tracks the major implementation areas for `agent-executor`.
 
-`agent-executor` is being built iteratively as a local Docker-backed execution service for AI agents. The project focuses on a small API, runtime extensibility, practical execution controls, temporary workspaces, artifact collection, structured execution results, MCP-based agent integration, and clear documentation around security tradeoffs.
+`agent-executor` is being built iteratively as a local Docker-backed execution service for AI agents. The project focuses on a small HTTP API, MCP-based agent integration, runtime extensibility, practical execution controls, temporary workspaces, artifact collection, structured execution results, and clear documentation around security tradeoffs.
 
 ## Completed
 
@@ -12,6 +12,16 @@ This roadmap tracks the major implementation areas for `agent-executor`.
 - `GET /health`
 - `GET /runtimes`
 - `POST /executions`
+
+### MCP server
+
+- MCP stdio server
+- `execute_code` MCP tool
+- `agent-executor://runtimes` MCP resource
+- `agent-executor://capabilities` MCP resource
+- MCP execution path using the shared execution service
+- MCP resource listing and reading tests
+- Stderr-only logging for stdio compatibility
 
 ### Runtime support
 
@@ -25,7 +35,11 @@ This roadmap tracks the major implementation areas for `agent-executor`.
 - Output limiting
 - Request body validation
 - Code size validation
+- File count validation
+- Individual file size validation
+- Total file size validation
 - Normalized execution result model
+- Shared execution validation through the execution service
 
 ### Docker execution
 
@@ -73,9 +87,13 @@ This roadmap tracks the major implementation areas for `agent-executor`.
 - Tests for limited writer
 - Tests for Docker execution
 - Tests for validation
+- Tests for execution service validation
+- Tests for execution service timeout behavior
 - Tests for workspace behavior
 - Tests for artifact collection
 - Tests for artifact limits
+- Tests for MCP resource listing
+- Tests for MCP resource reading
 
 ### Documentation
 
@@ -83,26 +101,11 @@ This roadmap tracks the major implementation areas for `agent-executor`.
 - Architecture documentation
 - Security model documentation
 - Roadmap documentation
+- MCP server documentation
 
 ## Current Focus
 
-### 1. MCP tool server wrapper
-
-Expose `agent-executor` as a tool server for agent workflows.
-
-This makes the executor usable by MCP-compatible agents as a local compute tool rather than only as a standalone HTTP API.
-
-Potential work:
-
-- Define an MCP tool for code execution
-- Map MCP tool input to the existing execution request model
-- Support language, code, and input files through MCP tool arguments
-- Return stdout, stderr, exit code, timeout status, and artifacts
-- Support artifact metadata in MCP tool responses
-- Document local agent usage examples
-- Add tests around MCP request/response mapping
-
-### 2. Binary/base64 artifact support
+### 1. Binary/base64 artifact support
 
 Support returning small binary artifacts inline using base64 encoding.
 
@@ -116,7 +119,7 @@ Potential work:
 - Add tests for PNG, PDF, and generic binary artifact behavior
 - Document binary artifact response examples
 
-### 3. Workspace cleanup hardening
+### 2. Workspace cleanup hardening
 
 Improve confidence that temporary workspaces are cleaned up correctly.
 
@@ -128,6 +131,21 @@ Potential work:
 - Add tests for cleanup behavior around executor errors
 - Add logging for cleanup failures
 - Consider making cleanup errors observable without hiding execution results
+
+### 3. MCP improvements
+
+Continue improving the MCP integration now that the initial stdio server is in place.
+
+Potential work:
+
+- Add MCP tool execution tests
+- Add tests around MCP request/response mapping
+- Document local MCP client configuration examples
+- Document usage with MCP-compatible clients
+- Add richer runtime/capability metadata
+- Add clearer MCP error mapping
+- Consider whether MCP responses should include structured content in addition to text content
+- Verify artifact response behavior through MCP clients
 
 ### 4. Additional Docker hardening
 
@@ -156,6 +174,7 @@ Potential work:
 - Workspace cleanup metrics
 - Clearer Docker execution errors
 - Clearer validation errors
+- MCP-specific error formatting
 
 ## Future Ideas
 
@@ -215,6 +234,7 @@ Potential work:
 - Example workflow that produces a ranked recommendation report
 - Example workflow that validates structured output
 - Documentation showing how an agent can call `/executions`
+- Documentation showing how an agent can use the MCP `execute_code` tool
 - Documentation showing how artifacts can be used as generated reports
 
 ### Configuration improvements
@@ -242,6 +262,18 @@ Potential work:
 - Runtime metadata in execution responses
 - Artifact response model refinements
 
+### MCP API improvements
+
+Potential work:
+
+- Runtime metadata in `agent-executor://runtimes`
+- Execution limit metadata in `agent-executor://capabilities`
+- More detailed tool descriptions
+- More precise input schema descriptions
+- Example prompts or usage notes for MCP clients
+- Optional MCP resource for security assumptions
+- Optional MCP resource for execution limits
+
 ### Developer experience
 
 Potential work:
@@ -249,8 +281,10 @@ Potential work:
 - Docker Compose setup
 - Example requests
 - Example agent integration
+- Example MCP client configuration
 - Makefile
 - GitHub Actions CI
+- `govulncheck` in CI
 - Contribution guide
 
 ### Streaming output
@@ -263,6 +297,7 @@ Potential work:
 - Preserve output limits
 - Return final execution metadata after completion
 - Consider Server-Sent Events or another simple streaming mechanism
+- Consider MCP-compatible streaming/progress behavior
 
 ### Persistent execution history
 
@@ -313,4 +348,4 @@ The project is not currently trying to become:
 - A general-purpose CI runner
 - A domain-specific fantasy football platform
 
-The current goal is to build a clear, local-first execution service that demonstrates practical API design, Docker execution, runtime abstraction, workspace handling, artifact collection, MCP-based agent integration, structured agent workflows, and security tradeoff documentation.
+The current goal is to build a clear, local-first execution service that demonstrates practical API design, MCP integration, Docker execution, runtime abstraction, workspace handling, artifact collection, structured agent workflows, and security tradeoff documentation.

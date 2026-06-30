@@ -6,6 +6,8 @@ This project is designed for local and development workflows. It is not intended
 
 Docker provides useful isolation, but Docker should not be treated as a complete security boundary against malicious code.
 
+`agent-executor` can be used through either the HTTP API or the MCP stdio server. Both entrypoints share the same execution service so execution-specific validation, timeout handling, workspace behavior, Docker execution, and artifact collection are centralized.
+
 ## Goals
 
 The service aims to provide practical guardrails for local agent execution workflows.
@@ -14,7 +16,7 @@ Current controls include:
 
 - Limit execution time
 - Limit captured output size
-- Limit request body size
+- Limit HTTP request body size
 - Limit code payload size
 - Limit input file count
 - Limit individual input file size
@@ -32,6 +34,7 @@ Current controls include:
 - Validate file paths before creating workspaces
 - Use temporary workspaces for file input and artifact output
 - Clean up workspaces after execution
+- Keep MCP stdio protocol output separate from logs by writing logs to stderr
 
 ## Non-goals
 
@@ -46,6 +49,37 @@ Current controls include:
 - Guaranteed network isolation beyond configured Docker behavior
 - Protection from every possible denial-of-service vector
 - Long-term storage of execution files or artifacts
+- Secure remote MCP server hosting
+
+## Entrypoints
+
+### HTTP API
+
+The HTTP API exposes code execution over local HTTP endpoints.
+
+HTTP-specific protections include:
+
+- Request body size limits
+- Request decoding
+- HTTP error mapping
+
+Execution-specific protections, such as code size validation, file validation, timeout behavior, Docker execution limits, and artifact limits, are handled by the shared execution service.
+
+### MCP stdio server
+
+The MCP stdio server exposes `agent-executor` to MCP-compatible clients.
+
+The MCP server exposes:
+
+- Tool: `execute_code`
+- Resource: `agent-executor://runtimes`
+- Resource: `agent-executor://capabilities`
+
+The MCP server does not call the HTTP API. The `execute_code` tool calls the shared execution service directly.
+
+This means MCP execution requests use the same execution-specific guardrails as HTTP execution requests.
+
+MCP stdio uses stdout for JSON-RPC protocol messages. The MCP server must not write logs, debug output, or human-readable status messages to stdout. Logs should be written to stderr.
 
 ## Threats considered
 
@@ -65,13 +99,24 @@ Mitigation:
 
 - Limited stdout/stderr capture
 
-### Large request bodies
+### Large HTTP request bodies
 
 Clients may send very large HTTP request bodies.
 
 Mitigation:
 
-- Request body size limits
+- HTTP request body size limits
+
+### Large MCP tool inputs
+
+MCP clients may send large tool inputs.
+
+Mitigation:
+
+- Code size validation in the execution service
+- Input file count validation in the execution service
+- Individual input file size validation in the execution service
+- Total input file size validation in the execution service
 
 ### Large code payloads
 
@@ -159,7 +204,7 @@ Mitigation:
 
 ### Generated artifact abuse
 
-Executed code may create many files, large files, or files that are unsafe to inline in the API response.
+Executed code may create many files, large files, or files that are unsafe to inline in the API or MCP response.
 
 Mitigation:
 
@@ -169,6 +214,18 @@ Mitigation:
 - Inline artifact content size is limited
 - Original input files are excluded from generated artifacts
 - Binary files are returned as metadata-only artifacts for now
+
+### MCP protocol corruption
+
+MCP stdio servers use stdout for JSON-RPC protocol messages.
+
+Writing logs, debug messages, or startup messages to stdout can corrupt the MCP protocol stream.
+
+Mitigation:
+
+- Do not write logs to stdout
+- Write logs to stderr
+- Avoid printing startup banners or human-readable status messages from the MCP stdio command
 
 ## Docker execution hardening
 
@@ -214,7 +271,7 @@ Mitigation:
 - Original input files are excluded from generated artifacts
 - Binary files are returned as metadata-only artifacts for now
 
-Small UTF-8 text artifacts may be returned inline in the API response.
+Small UTF-8 text artifacts may be returned inline in the API or MCP response.
 
 Larger files and binary files are returned as metadata-only artifacts for now. Future binary artifact support may add base64-encoded content for small binary files.
 
@@ -235,6 +292,8 @@ Remaining risks include:
 - Resource exhaustion outside configured limits
 - Sensitive data exposure if unsafe host paths are mounted in the future
 - Unsafe behavior if this service is exposed publicly without authentication
+- Unsafe behavior if exposed as a remote MCP server without additional authentication, authorization, and sandboxing controls
+- MCP client misuse if a client allows untrusted prompts to invoke the `execute_code` tool without review
 
 ## Read-only filesystem mode
 
@@ -263,6 +322,7 @@ Recommended usage:
 - Controlled demos
 - Personal portfolio/testing environments
 - Internal tools where inputs are trusted or semi-trusted
+- Local MCP-compatible agent workflows
 
 Not recommended usage:
 
@@ -271,6 +331,7 @@ Not recommended usage:
 - Production execution of untrusted code
 - Sensitive environments without additional sandboxing
 - Running arbitrary code from unknown users
+- Remote MCP server exposure without additional controls
 
 ## Security posture
 
