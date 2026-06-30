@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os/exec"
 	"strconv"
+	"time"
 )
 
 type DockerExecutor struct {
@@ -38,10 +39,15 @@ func (e *DockerExecutor) Run(
 	}
 	defer ws.cleanup()
 
-	args := e.buildRunArgs(runtime, ws.path)
+	containerName := fmt.Sprintf("agent-executor-%d", time.Now().UnixNano())
+
+	args := e.buildRunArgs(runtime, ws.path, containerName)
 
 	// Create the command to run the Docker container with the specified arguments.
 	cmd := exec.CommandContext(ctx, "docker", args...)
+	defer func() {
+		_ = exec.Command("docker", "rm", "-f", containerName).Run()
+	}()
 	// Provide the code to the container via stdin.
 	cmd.Stdin = bytes.NewBufferString(req.Code)
 
@@ -55,6 +61,16 @@ func (e *DockerExecutor) Run(
 	// Run the docker command
 	err = cmd.Run()
 
+	if ctx.Err() == context.DeadlineExceeded {
+		_ = exec.Command("docker", "rm", "-f", containerName).Run()
+		return Result{}, ctx.Err()
+	}
+
+	if ctx.Err() != nil {
+		_ = exec.Command("docker", "rm", "-f", containerName).Run()
+		return Result{}, ctx.Err()
+	}
+
 	artifacts, artifactError := ws.collectArtifacts(req.Files, e.config)
 
 	if artifactError != nil {
@@ -65,10 +81,6 @@ func (e *DockerExecutor) Run(
 		Stdout:    stdout.String(),
 		Stderr:    stderr.String(),
 		Artifacts: artifacts,
-	}
-
-	if ctx.Err() != nil {
-		return Result{}, ctx.Err()
 	}
 
 	if err == nil {
@@ -85,13 +97,17 @@ func (e *DockerExecutor) Run(
 
 }
 
-func (e *DockerExecutor) buildRunArgs(runtime Runtime, workspacePath string) []string {
+func (e *DockerExecutor) buildRunArgs(runtime Runtime, workspacePath string, containerName string) []string {
 	cfg := e.config
 
 	args := []string{
 		"run",
 		"--rm",
 		"-i",
+	}
+
+	if containerName != "" {
+		args = append(args, "--name", containerName)
 	}
 
 	if cfg.NetworkDisabled {

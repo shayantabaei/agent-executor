@@ -18,12 +18,13 @@ func TestDockerExecutorBuildRunArgsUsesConfig(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	args := executor.buildRunArgs(runtime, "/tmp/workspace")
+	args := executor.buildRunArgs(runtime, "/tmp/workspace", "test-container")
 
 	expectedPrefix := []string{
 		"run",
 		"--rm",
 		"-i",
+		"--name", "test-container",
 		"--network", "none",
 		"--memory", "128m",
 		"--cpus", "0.5",
