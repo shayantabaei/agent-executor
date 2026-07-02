@@ -287,3 +287,141 @@ func TestDockerExecutorExcludesInputFilesFromArtifacts(t *testing.T) {
 		t.Fatalf("expected artifact content %q, got %q", "HELLO", artifact.Content)
 	}
 }
+
+func TestDockerExecutorCleansUpWorkspaceAfterRuntimeError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Docker integration test in short mode")
+	}
+
+	realCreateWorkspace := createWorkspace
+
+	var cleaned bool
+
+	executor := NewDockerExecutor()
+	executor.createWorkspace = realCreateWorkspace
+	executor.cleanupWorkspace = func(ws *workspace) {
+		cleaned = true
+		if err := ws.cleanup(); err != nil {
+			t.Fatalf("unexpected cleanup error: %v", err)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	result, err := executor.Run(ctx, Request{
+		Language: "python",
+		Code:     `raise Exception("boom")`,
+	})
+
+	if err != nil {
+		t.Fatalf("expected runtime error to be returned as result, got err: %v", err)
+	}
+
+	if result.ExitCode == 0 {
+		t.Fatal("expected non-zero exit code")
+	}
+
+	if !cleaned {
+		t.Fatal("expected workspace cleanup to be called")
+	}
+}
+
+func TestDockerExecutorCleansUpWorkspaceAfterArtifactError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Docker integration test in short mode")
+	}
+
+	var cleaned bool
+
+	cfg := DefaultDockerConfig()
+	cfg.MaxArtifactCount = 0
+
+	executor := NewDockerExecutorWithConfig(cfg)
+	executor.cleanupWorkspace = func(ws *workspace) {
+		cleaned = true
+		if err := ws.cleanup(); err != nil {
+			t.Fatalf("unexpected cleanup error: %v", err)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := executor.Run(ctx, Request{
+		Language: "python",
+		Code:     `open("output.txt", "w").write("hello")`,
+	})
+
+	if !errors.Is(err, ErrTooManyArtifacts) {
+		t.Fatalf("expected ErrTooManyArtifacts, got %v", err)
+	}
+
+	if !cleaned {
+		t.Fatal("expected workspace cleanup to be called")
+	}
+}
+
+func TestDockerExecutorCleansUpWorkspaceAfterSuccess(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Docker integration test in short mode")
+	}
+
+	var cleaned bool
+
+	executor := NewDockerExecutor()
+	executor.cleanupWorkspace = func(ws *workspace) {
+		cleaned = true
+		if err := ws.cleanup(); err != nil {
+			t.Fatalf("unexpected cleanup error: %v", err)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err := executor.Run(ctx, Request{
+		Language: "python",
+		Code:     `print("ok")`,
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !cleaned {
+		t.Fatal("expected workspace cleanup to be called")
+	}
+}
+
+func TestDockerExecutorCleansUpWorkspaceAfterTimeout(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping Docker integration test in short mode")
+	}
+
+	var cleaned bool
+
+	executor := NewDockerExecutor()
+	executor.cleanupWorkspace = func(ws *workspace) {
+		cleaned = true
+		if err := ws.cleanup(); err != nil {
+			t.Fatalf("unexpected cleanup error: %v", err)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err := executor.Run(ctx, Request{
+		Language: "python",
+		Code:     `import time; time.sleep(5)`,
+	})
+
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expected context deadline exceeded, got %v", err)
+	}
+
+	if !cleaned {
+		t.Fatal("expected workspace cleanup to be called")
+	}
+}
