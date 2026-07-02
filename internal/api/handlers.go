@@ -66,7 +66,7 @@ func (h *Handler) ExecutionHandler(
 	var request ExecutionRequest
 	// Decode JSON body into ExecutionRequest struct
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		writeErrorJSON(w, http.StatusBadRequest, "Invalid JSON body", execution.ErrorTypeValidation)
 		return
 	}
 
@@ -76,23 +76,48 @@ func (h *Handler) ExecutionHandler(
 
 	var unsupportedLanguageError execution.UnsupportedLanguageError
 	if err != nil {
-		if execution.IsValidationError(err) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if result.TimedOut || errors.Is(err, context.DeadlineExceeded) {
+			if result.ErrorType == "" {
+				result.ErrorType = execution.ErrorTypeTimeout
+			}
+			if result.Stderr == "" {
+				result.Stderr = "execution timed out"
+			}
+			result.TimedOut = true
+
+			writeJSON(w, http.StatusRequestTimeout, toExecutionResponse(result))
 			return
 		}
 
-		if errors.Is(err, context.DeadlineExceeded) {
-			http.Error(w, "Execution timed out", http.StatusRequestTimeout)
+		if result.ErrorType == execution.ErrorTypeValidation || execution.IsValidationError(err) {
+			writeErrorJSON(w, http.StatusBadRequest, err.Error(), execution.ErrorTypeValidation)
 			return
 		}
 
-		if errors.As(err, &unsupportedLanguageError) {
-			http.Error(w, unsupportedLanguageError.Error(), http.StatusBadRequest)
+		if result.ErrorType == execution.ErrorTypeRuntimeNotFound || errors.As(err, &unsupportedLanguageError) {
+			writeErrorJSON(w, http.StatusBadRequest, err.Error(), execution.ErrorTypeRuntimeNotFound)
+			return
+		}
+
+		if result.ErrorType == execution.ErrorTypeArtifact {
+			writeErrorJSON(w, http.StatusInternalServerError, err.Error(), execution.ErrorTypeArtifact)
+			return
+		}
+
+		if result.ErrorType == execution.ErrorTypeWorkspace {
+			log.Printf("Workspace error: %v", err)
+			writeErrorJSON(w, http.StatusInternalServerError, "Workspace setup failed", execution.ErrorTypeWorkspace)
+			return
+		}
+
+		if result.ErrorType == execution.ErrorTypeDocker {
+			log.Printf("Docker execution error: %v", err)
+			writeErrorJSON(w, http.StatusInternalServerError, "Docker execution failed", execution.ErrorTypeDocker)
 			return
 		}
 
 		log.Printf("Error executing code: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		writeErrorJSON(w, http.StatusInternalServerError, "Internal Server Error", execution.ErrorTypeInternal)
 		return
 	}
 
@@ -127,6 +152,13 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 	}
 }
 
+func writeErrorJSON(w http.ResponseWriter, status int, message string, errorType execution.ErrorType) {
+	writeJSON(w, status, ErrorResponse{
+		Error:     message,
+		ErrorType: string(errorType),
+	})
+}
+
 func toExecutionRequest(req ExecutionRequest) execution.Request {
 	files := make([]execution.InputFile, 0, len(req.Files))
 
@@ -158,9 +190,12 @@ func toExecutionResponse(result execution.Result) ExecutionResponse {
 	}
 
 	return ExecutionResponse{
-		Stdout:    result.Stdout,
-		Stderr:    result.Stderr,
-		ExitCode:  result.ExitCode,
-		Artifacts: artifacts,
+		Stdout:     result.Stdout,
+		Stderr:     result.Stderr,
+		ExitCode:   result.ExitCode,
+		Artifacts:  artifacts,
+		TimedOut:   result.TimedOut,
+		DurationMs: result.DurationMs,
+		ErrorType:  string(result.ErrorType),
 	}
 }

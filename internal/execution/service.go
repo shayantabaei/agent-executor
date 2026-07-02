@@ -2,6 +2,7 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -67,12 +68,50 @@ func NewServiceWithConfig(executor Executor, config ServiceConfig) *Service {
 }
 
 func (s *Service) Run(ctx context.Context, req Request) (Result, error) {
+	start := time.Now()
+
 	if err := validateRequest(req, s.config); err != nil {
-		return Result{}, err
+		return Result{
+			DurationMs: time.Since(start).Milliseconds(),
+			ErrorType:  ErrorTypeValidation,
+		}, err
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, s.config.Timeout)
 	defer cancel()
 
-	return s.executor.Run(ctx, req)
+	result, err := s.executor.Run(ctx, req)
+	result.DurationMs = time.Since(start).Milliseconds()
+
+	if err == nil {
+		return result, nil
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) {
+		result.TimedOut = true
+		if result.Stderr == "" {
+			result.Stderr = "execution timed out"
+		}
+		result.ErrorType = ErrorTypeTimeout
+		return result, err
+	}
+
+	if result.ErrorType == "" {
+		result.ErrorType = classifyError(err)
+	}
+
+	return result, err
+}
+
+func classifyError(err error) ErrorType {
+	var unsupportedLanguageError UnsupportedLanguageError
+	if errors.As(err, &unsupportedLanguageError) {
+		return ErrorTypeRuntimeNotFound
+	}
+
+	if IsValidationError(err) {
+		return ErrorTypeValidation
+	}
+
+	return ErrorTypeInternal
 }

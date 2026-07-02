@@ -81,7 +81,11 @@ func (e *DockerExecutor) Run(
 	artifacts, artifactError := ws.collectArtifacts(req.Files, e.config)
 
 	if artifactError != nil {
-		return Result{}, artifactError
+		return Result{
+			Stdout:    stdout.String(),
+			Stderr:    stderr.String(),
+			ErrorType: ErrorTypeArtifact,
+		}, artifactError
 	}
 
 	result := Result{
@@ -97,6 +101,7 @@ func (e *DockerExecutor) Run(
 	var exitError *exec.ExitError
 	if ok := errors.As(err, &exitError); ok {
 		result.ExitCode = exitError.ExitCode()
+		result.ErrorType = ErrorTypeRuntime
 		return result, nil
 	}
 
