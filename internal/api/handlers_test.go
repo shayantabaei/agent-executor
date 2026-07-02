@@ -55,8 +55,7 @@ func TestExecutionHandlerSuccess(t *testing.T) {
 		)
 	}
 
-	expected := `{"stdout":"4\n","stderr":"","exitCode":0}`
-
+	expected := `{"stdout":"4\n","stderr":"","exitCode":0,"timedOut":false,"durationMs":0}`
 	if strings.TrimSpace(recorder.Body.String()) != expected {
 		t.Fatalf(
 			"expected body %q, got %q",

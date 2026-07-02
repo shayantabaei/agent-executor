@@ -12,10 +12,18 @@ type InputFile struct {
 }
 
 type ExecutionResponse struct {
-	Stdout    string             `json:"stdout"`
-	Stderr    string             `json:"stderr"`
-	ExitCode  int                `json:"exitCode"`
-	Artifacts []ArtifactResponse `json:"artifacts,omitempty"`
+	Stdout     string             `json:"stdout"`
+	Stderr     string             `json:"stderr"`
+	ExitCode   int                `json:"exitCode"`
+	Artifacts  []ArtifactResponse `json:"artifacts,omitempty"`
+	TimedOut   bool               `json:"timedOut"`
+	DurationMs int64              `json:"durationMs"`
+	ErrorType  string             `json:"errorType,omitempty"`
+}
+
+type ErrorResponse struct {
+	Error     string `json:"error"`
+	ErrorType string `json:"errorType"`
 }
 
 type ArtifactResponse struct {

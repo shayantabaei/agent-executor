@@ -14,10 +14,13 @@ type InputFile struct {
 }
 
 type Result struct {
-	Stdout    string
-	Stderr    string
-	ExitCode  int
-	Artifacts []Artifact
+	Stdout     string
+	Stderr     string
+	ExitCode   int
+	Artifacts  []Artifact
+	TimedOut   bool
+	DurationMs int64
+	ErrorType  ErrorType
 }
 
 type Artifact struct {
