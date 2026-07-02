@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -51,6 +52,16 @@ func (w *workspace) writeFiles(files []InputFile) error {
 	}
 
 	return nil
+}
+
+func cleanupWorkspace(ws *workspace) {
+	if ws == nil {
+		return
+	}
+
+	if err := ws.cleanup(); err != nil {
+		log.Printf("Failed to cleanup workspace %q: %v", ws.path, err)
+	}
 }
 
 func (w *workspace) cleanup() error {

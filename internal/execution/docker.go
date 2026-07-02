@@ -12,6 +12,9 @@ import (
 
 type DockerExecutor struct {
 	config DockerConfig
+
+	createWorkspace  func(files []InputFile) (*workspace, error)
+	cleanupWorkspace func(ws *workspace)
 }
 
 func NewDockerExecutor() *DockerExecutor {
@@ -19,7 +22,11 @@ func NewDockerExecutor() *DockerExecutor {
 }
 
 func NewDockerExecutorWithConfig(config DockerConfig) *DockerExecutor {
-	return &DockerExecutor{config: config}
+	return &DockerExecutor{
+		config:           config,
+		createWorkspace:  createWorkspace,
+		cleanupWorkspace: cleanupWorkspace,
+	}
 }
 
 func (e *DockerExecutor) Run(
@@ -33,11 +40,11 @@ func (e *DockerExecutor) Run(
 		return Result{}, err
 	}
 
-	ws, err := createWorkspace(req.Files)
+	ws, err := e.createWorkspace(req.Files)
 	if err != nil {
 		return Result{}, err
 	}
-	defer ws.cleanup()
+	defer e.cleanupWorkspace(ws)
 
 	containerName := fmt.Sprintf("agent-executor-%d", time.Now().UnixNano())
 
